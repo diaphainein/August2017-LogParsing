@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using Amazon.Lambda.Core;
 using Amazon.S3;
 using Amazon.S3.Model;
@@ -43,7 +44,15 @@ namespace LogParser {
         }
         
         public static string DecompressLogData(string value) {
-            throw new NotImplementedException();
+            var bytes = Convert.FromBase64String(value);
+            var source = new MemoryStream(bytes);
+            var destination = new MemoryStream();
+            using(var compressedStream = new GZipStream(source, CompressionMode.Decompress)) {
+                compressedStream.CopyTo(destination);
+            }
+            var data = Encoding.UTF8.GetString(destination.ToArray());
+            LambdaLogger.Log("*** DATA: " + data + "\n");
+            return data;
         }
 
         private static IEnumerable<string> ParseLog(string data) {
