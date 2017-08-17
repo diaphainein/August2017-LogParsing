@@ -4,11 +4,13 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Amazon.Lambda.Core;
 using Amazon.S3;
 using Amazon.S3.Model;
 using LogParser.Model;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace LogParser {
     
@@ -43,7 +45,7 @@ namespace LogParser {
             // Level 4: Create athena schema to query data
         }
         
-        public static string DecompressLogData(string value) {
+        public string DecompressLogData(string value) {
             var bytes = Convert.FromBase64String(value);
             var source = new MemoryStream(bytes);
             var destination = new MemoryStream();
@@ -55,12 +57,19 @@ namespace LogParser {
             return data;
         }
 
-        private static IEnumerable<string> ParseLog(string data) {
-            throw new NotImplementedException();
+        private IEnumerable<string> ParseLog(string data) {
+            var json = JsonConvert.DeserializeObject<JObject>(data);
+            foreach(var entry in json["logEvents"]) {
+                yield return (string)entry["message"];
+            }
         }
 
         public void PutObject(IEnumerable<string> values) {
-            throw new NotImplementedException();
+            foreach(var value in values) {
+                foreach(Match match in Regex.Matches(value, "\\(.*\\)")) {
+                    LambdaLogger.Log("*** MATCH: " + match.Groups[1].Value + "\n");
+                }
+            }
         }
     }
 }
