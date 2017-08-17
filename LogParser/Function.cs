@@ -18,12 +18,14 @@ namespace LogParser {
     public class Function {
     
         //--- Fields ---
-        private readonly string logsBucket = Environment.GetEnvironmentVariable("LOGS_BUCKET");
         private readonly IAmazonS3 _s3Client;
+        private readonly string _bucket;
+        private readonly Random _random = new Random();
         
         //--- Constructors ---
         public Function() {
             _s3Client = new AmazonS3Client();
+            _bucket = System.Environment.GetEnvironmentVariable("bucket");
         }
 
         //--- Methods ---
@@ -65,15 +67,26 @@ namespace LogParser {
         }
 
         public void PutObject(IEnumerable<string> values) {
+            var payload = new StringBuilder();
             foreach(var value in values) {
                 var matches = Regex.Matches(value, "\\(([^\\)]*)\\)").Cast<Match>().Select(match => match.Value).ToArray();
                 var json = new {
-                    user_name = matches[0],
-                    friends = matches[4],
-                    date_created = matches[9]
+                    user_name = Extract(matches[0]),
+                    friends = Extract(matches[4]),
+                    date_created = Extract(matches[9])
                 };
-                LambdaLogger.Log(JsonConvert.SerializeObject(json) + "\n");
+                var serialized = JsonConvert.SerializeObject(json, Formatting.None);
+                // LambdaLogger.Log(serialized + "\n");
+                payload.AppendLine(serialized);
             }
+            _s3Client.PutObjectAsync(new PutObjectRequest {
+                BucketName = _bucket,
+                Key = "data_" + _random.Next() + ".json",
+                InputStream = new MemoryStream(Encoding.UTF8.GetBytes(payload.ToString()))
+            }).Wait();
+
+            // local functions
+            string Extract(string v) => v.Substring(1, v.Length - 2);
         }
     }
 }
