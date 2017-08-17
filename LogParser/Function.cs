@@ -66,9 +66,13 @@ namespace LogParser {
 
         public void PutObject(IEnumerable<string> values) {
             foreach(var value in values) {
-                foreach(Match match in Regex.Matches(value, "\\((.*)\\)")) {
-                    LambdaLogger.Log("*** MATCH: " + match.Groups[1].Value + "\n");
-                }
+                var matches = Regex.Matches(value, "\\(([^\\)]*)\\)").Cast<Match>().Select(match => match.Value).ToArray();
+                var json = new {
+                    user_name = matches[0],
+                    friends = matches[4],
+                    date_created = matches[9]
+                };
+                LambdaLogger.Log(JsonConvert.SerializeObject(json) + "\n");
             }
         }
     }
